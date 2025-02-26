@@ -12,10 +12,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Allow PowerShell Scripts to Run
-        run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned
-        shell: powershell
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
