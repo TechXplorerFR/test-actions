@@ -1,0 +1,48 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Runs on every push to main
+
+jobs:
+  build-and-test:
+    runs-on: self-hosted  # Use Windows runner
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: Code/Frontend/package-lock.json  # Ensure correct caching
+
+      - name: Install Dependencies
+        working-directory: ./Code/Frontend
+        run: npm ci
+
+      - name: Build the Project
+        working-directory: ./Code/Frontend
+        run: npm run build
+
+      - name: Run Unit Tests
+        working-directory: ./Code/Frontend
+        run: npm run test:unit
+
+  docker-build-and-push:
+    needs: build-and-test  # Runs only if tests pass
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build Docker Image
+        run: docker build -t ghcr.io/${{ github.repository }}/myapp:latest -f Code/Frontend/Dockerfile .
+
+      - name: Push Docker Image to GitHub Container Registry
+        run: docker push ghcr.io/${{ github.repository }}/myapp:latest
