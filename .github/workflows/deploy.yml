@@ -43,7 +43,7 @@ jobs:
         run: |
           $env:GHCR_PAT = "${{ secrets.GHCR_PAT }}"
           Write-Host "Attempting to log in to GHCR..."
-          docker login ghcr.io -u "${{ github.actor }}" --password-stdin <<< "$env:GHCR_PAT"
+          $env:GHCR_PAT | docker login ghcr.io -u "TechXplorerFR" --password-stdin
           if ($LASTEXITCODE -ne 0) {
               Write-Host "❌ Docker login failed."
               exit 1
@@ -51,11 +51,6 @@ jobs:
               Write-Host "✅ Docker login successful."
           }
 
-
-      - name: Log in to GitHub Container Registry (Windows)
-        shell: powershell
-        run: |
-          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Build Docker Image
         run: docker build -t ghcr.io/${{ github.repository }}/myapp:latest -f Code/Frontend/Dockerfile ./Code/Frontend
