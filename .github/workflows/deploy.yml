@@ -46,8 +46,9 @@ jobs:
 
           Write-Host "Attempting to log in to GHCR..."
           
-          # Log the actual command (without the token for security reasons)
+          # Log the command and the token (⚠️ REMOVE this in production!)
           "docker login ghcr.io -u 'TechXplorerFR' --password-stdin" | Out-File -FilePath $logFile -Encoding utf8 -Append
+          "GHCR_PAT value: $env:GHCR_PAT" | Out-File -FilePath $logFile -Encoding utf8 -Append
           
           # Execute the login command and log output
           $env:GHCR_PAT | docker login ghcr.io -u "TechXplorerFR" --password-stdin *>> $logFile
@@ -61,6 +62,7 @@ jobs:
               Write-Host "✅ Docker login successful."
               "✅ Docker login successful." | Out-File -FilePath $logFile -Encoding utf8 -Append
           }
+
 
       - name: Build Docker Image
         run: docker build -t ghcr.io/${{ github.repository }}/myapp:latest -f Code/Frontend/Dockerfile ./Code/Frontend
