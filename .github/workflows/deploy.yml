@@ -46,7 +46,7 @@ jobs:
               Write-Host "❌ GHCR_PAT is EMPTY! Make sure it's set correctly in GitHub Secrets."
               exit 1
           } else {
-              Write-Host "✅ GHCR_PAT is set."
+              Write-Host "✅ GHCR_PAT is set. $env:GHCR_PAT"
           }
 
       - name: Log in to GitHub Container Registry (Windows)
