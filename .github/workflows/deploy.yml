@@ -42,7 +42,7 @@ jobs:
         shell: powershell
         run: |
           $env:GHCR_PAT = "${{ secrets.GHCR_PAT }}"
-          $logFile = "C:\\docker_login_debug.txt"
+          $logFile = "C:\\actions-runner\docker_login_debug.txt"
 
           Write-Host "Attempting to log in to GHCR..."
           
