@@ -44,7 +44,7 @@ jobs:
           $env:GHCR_PAT = "${{ secrets.GHCR_PAT }}"
           $logFile = "C:\\actions-runner\docker_login_debug.txt"
          
-          #echo "$env:GHCR_PAT" | docker login ghcr.io -u 'TechXplorerFR' --password-stdin
+          echo '$env:GHCR_PAT' | docker login ghcr.io -u 'TechXplorerFR' --password-stdin
 
           "echo '$env:GHCR_PAT' | docker login ghcr.io -u 'TechXplorerFR' --password-stdin" | Out-File -FilePath $logFile -Encoding utf8 -Append
           
