@@ -39,14 +39,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Debug GHCR Token
+        shell: pwsh
         run: |
-          echo "Checking GHCR_PAT..."
-          if [ -z "${{ secrets.GHCR_PAT }}" ]; then
-            echo "GHCR_PAT is EMPTY! Make sure it's set correctly in GitHub Secrets."
-            exit 1
-          else
-            echo "GHCR_PAT is set."
-          fi
+          Write-Host "Checking GHCR_PAT..."
+          if ($env:GHCR_PAT -eq $null -or $env:GHCR_PAT -eq "") {
+              Write-Host "❌ GHCR_PAT is EMPTY! Make sure it's set correctly in GitHub Secrets."
+              exit 1
+          } else {
+              Write-Host "✅ GHCR_PAT is set."
+          }
+      
 
       - name: Log in to GitHub Container Registry
         run: |
