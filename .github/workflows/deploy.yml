@@ -46,7 +46,7 @@ jobs:
          
           #echo "$env:GHCR_PAT" | docker login ghcr.io -u 'TechXplorerFR' --password-stdin
 
-          'echo "$env:GHCR_PAT" | docker login ghcr.io -u "TechXplorerFR" --password-stdin' | Out-File -FilePath $logFile -Encoding utf8 -Append
+          "echo '$env:GHCR_PAT' | docker login ghcr.io -u 'TechXplorerFR' --password-stdin" | Out-File -FilePath $logFile -Encoding utf8 -Append
           
           # Check if login succeeded
           if ($LASTEXITCODE -ne 0) {
