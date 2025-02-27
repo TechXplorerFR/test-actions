@@ -38,16 +38,19 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Debug GHCR Token
+      - name: Log in to GitHub Container Registry (Windows)
         shell: powershell
         run: |
-          Write-Host "Checking GHCR_PAT..."
-          if ("${{ secrets.GHCR_PAT }}" -eq "") {
-              Write-Host "❌ GHCR_PAT is EMPTY! Make sure it's set correctly in GitHub Secrets."
+          $env:GHCR_PAT = "${{ secrets.GHCR_PAT }}"
+          Write-Host "Attempting to log in to GHCR..."
+          docker login ghcr.io -u "${{ github.actor }}" --password-stdin <<< "$env:GHCR_PAT"
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "❌ Docker login failed."
               exit 1
           } else {
-              Write-Host "✅ GHCR_PAT is set. $env:GHCR_PAT"
+              Write-Host "✅ Docker login successful."
           }
+
 
       - name: Log in to GitHub Container Registry (Windows)
         shell: powershell
