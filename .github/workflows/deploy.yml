@@ -62,4 +62,4 @@ jobs:
         run: docker build -t ghcr.io/techxplorerfr/test-actions/myapp:latest -f Dockerfile .
 
       - name: Push Docker Image to GitHub Container Registry
-        run: docker push ghcr.io/${{ github.repository }}/myapp:latest
+        run: docker push ghcr.io/techxplorerfr/test-actions/myapp:latest
