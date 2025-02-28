@@ -4,6 +4,9 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
+RUN pwd
+RUN ls
+
 # Copy package files
 COPY ./Code/Frontend/package.json ./Code/Frontend/package-lock.json ./
 
