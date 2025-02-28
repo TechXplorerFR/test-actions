@@ -39,6 +39,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry (Windows)
+        shell: pwsh
         run: |
           # $env:GHCR_PAT = "${{ secrets.GHCR_PAT }}"
           $logFile = "C:\\actions-runner\docker_login_debug.txt"
