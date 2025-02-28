@@ -8,13 +8,13 @@ RUN pwd
 RUN ls
 
 # Copy package files
-COPY ./Code/Frontend/package.json ./Code/Frontend/package-lock.json ./
+COPY package.json package-lock.json ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy app source
-COPY ./Code/Frontend .
+COPY . .
 
 # Build the app
 RUN npm run build
