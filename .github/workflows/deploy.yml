@@ -59,9 +59,7 @@ jobs:
           }
 
       - name: Build Docker Image
-        run: |
-            REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-            docker build -t ghcr.io/${REPO_NAME}/myapp:latest -f Code/Frontend/Dockerfile ./Code/Frontend    
+        run: docker build -t ghcr.io/techxplorerfr/test-actions/myapp:latest -f Code/Frontend/Dockerfile ./Code/Frontend
 
       - name: Push Docker Image to GitHub Container Registry
         run: docker push ghcr.io/${{ github.repository }}/myapp:latest
