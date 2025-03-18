@@ -1,5 +1,5 @@
 # Use node as the base image
-FROM node:18-alpine
+FROM node:23-alpine
 
 # Set working directory
 WORKDIR /app
@@ -20,7 +20,7 @@ COPY Code/Frontend ./
 RUN npm run build
 
 # Expose the port
-EXPOSE 3000
+EXPOSE 4173
 
 # Run preview server
 CMD ["npm", "run", "preview"]
