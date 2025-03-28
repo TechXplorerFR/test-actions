@@ -68,12 +68,21 @@ jobs:
           $body = '{"visibility":"public"}'
 
           try {
-              # Use the organization endpoint format instead of user endpoint
-              $response = Invoke-RestMethod -Uri "https://api.github.com/orgs/techxplorerfr/packages/container/myapp" -Method PATCH -Headers $headers -Body $body -ContentType "application/json" -ErrorAction Stop
+              # Correct URL format with URL-encoded package name (test-actions%2Fmyapp)
+              $response = Invoke-RestMethod -Uri "https://api.github.com/orgs/techxplorerfr/packages/container/test-actions%2Fmyapp" -Method PATCH -Headers $headers -Body $body -ContentType "application/json" -ErrorAction Stop
               Write-Host "✅ Docker image successfully made public"
           } catch {
               Write-Host "❌ Failed to make Docker image public"
               Write-Host "Error details: $_"
               Write-Host "Response content: $($_.ErrorDetails.Message)"
-              exit 1
+              
+              # Try alternative format if the first attempt fails
+              try {
+                  Write-Host "Trying alternative package path format..."
+                  $response = Invoke-RestMethod -Uri "https://api.github.com/user/packages/container/test-actions%2Fmyapp" -Method PATCH -Headers $headers -Body $body -ContentType "application/json" -ErrorAction Stop
+                  Write-Host "✅ Docker image successfully made public with alternative path"
+              } catch {
+                  Write-Host "❌ All attempts failed. Error details: $_"
+                  exit 1
+              }
           }
