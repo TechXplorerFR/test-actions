@@ -4,14 +4,11 @@ FROM node:23-alpine
 # Set working directory
 WORKDIR /app
 
-RUN pwd
-RUN ls
-
 # Copy package files
 COPY Code/Frontend/package.json Code/Frontend/package-lock.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm i
 
 # Copy app source
 COPY Code/Frontend ./
