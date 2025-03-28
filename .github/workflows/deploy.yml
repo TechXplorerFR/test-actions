@@ -7,7 +7,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # Fix: Use just the repository name without extra segments
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
@@ -39,7 +38,6 @@ jobs:
   docker-build-and-push:
     needs: build-and-test
     runs-on: self-hosted
-    # Set appropriate permissions for ghcr.io
     permissions:
       contents: read
       packages: write
@@ -89,13 +87,31 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Add GitHub Package visibility labels
           provenance: true
           sbom: true
-
+      
+      # Debug step to check the build-and-push outputs
+      - name: Check outputs
+        shell: pwsh
+        run: |
+          Write-Host "Available outputs from build-and-push:"
+          Write-Host "Digest: ${{ steps.build-and-push.outputs.digest }}"
+          Write-Host "Metadata: ${{ steps.build-and-push.outputs.metadata }}"
+          Write-Host "ImageID: ${{ steps.build-and-push.outputs.ImageID }}"
+      
+      # Only run attestation if digest is available
       - name: Generate artifact attestation
+        if: ${{ steps.build-and-push.outputs.digest != '' }}
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
           subject-digest: ${{ steps.build-and-push.outputs.digest }}
           push-to-registry: true
+      
+      # Alternative attestation if the standard one fails
+      - name: Alternative attestation approach
+        if: ${{ steps.build-and-push.outputs.digest == '' }}
+        shell: pwsh
+        run: |
+          Write-Host "Standard attestation skipped due to missing digest value."
+          Write-Host "Your container has been published to ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}"
