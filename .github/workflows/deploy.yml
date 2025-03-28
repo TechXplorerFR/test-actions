@@ -3,11 +3,11 @@ name: CI/CD Pipeline
 on:
   push:
     branches-ignore:
-      - documents  # Exclude pushes to the "documents" branch
+      - documents # Exclude pushes to the "documents" branch
 
 jobs:
   build-and-test:
-    runs-on: self-hosted  # Use Windows runner
+    runs-on: self-hosted # Use Windows runner
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -16,8 +16,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
-          cache-dependency-path: Code/Frontend/package-lock.json  # Ensure correct caching
+          cache: "npm"
+          cache-dependency-path: Code/Frontend/package-lock.json # Ensure correct caching
 
       - name: Install Dependencies
         working-directory: ./Code/Frontend
@@ -32,7 +32,7 @@ jobs:
         run: npm run test:unit
 
   docker-build-and-push:
-    needs: build-and-test  # Runs only if tests pass
+    needs: build-and-test
     runs-on: self-hosted
     steps:
       - name: Checkout Repository
@@ -50,6 +50,7 @@ jobs:
           echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u 'TechXplorerFR' --password-stdin
 
       - name: Build and Push Multi-Arch Docker Image
+        shell: pwsh
         run: |
           docker buildx create --use
           docker buildx build --platform linux/amd64,linux/arm64 \
@@ -64,7 +65,7 @@ jobs:
             "Accept" = "application/vnd.github.v3+json"
           }
           $body = '{"visibility":"public"}'
-          
+
           Invoke-RestMethod -Uri "https://api.github.com/user/packages/container/test-actions%2Fmyapp" -Method Patch -Headers $headers -Body $body -ContentType "application/json"
 
           if ($LASTEXITCODE -ne 0) {
