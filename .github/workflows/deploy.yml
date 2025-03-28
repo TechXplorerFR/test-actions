@@ -7,7 +7,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/myapp
+  # Fix: Use just the repository name without extra segments
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-test:
@@ -62,6 +63,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Display debugging information
+      - name: Debug Info
+        shell: pwsh
+        run: |
+          Write-Host "GitHub Repository: ${{ github.repository }}"
+          Write-Host "Image Name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          Write-Host "Actor: ${{ github.actor }}"
+
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
@@ -80,6 +89,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Add GitHub Package visibility labels
+          provenance: true
+          sbom: true
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
