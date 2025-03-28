@@ -56,7 +56,7 @@ jobs:
           # Fix: Using proper PowerShell line continuation with backticks and correct Dockerfile path
           docker buildx build --platform linux/amd64,linux/arm64 `
             -t ghcr.io/techxplorerfr/test-actions/myapp:latest `
-            -f ./Code/Frontend/Dockerfile . --push
+            -f ./Dockerfile . --push
 
       - name: Make Docker Image Public
         shell: pwsh
