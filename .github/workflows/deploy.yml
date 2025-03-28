@@ -5,6 +5,10 @@ on:
     branches-ignore:
       - documents # Exclude pushes to the "documents" branch
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/myapp
+
 jobs:
   build-and-test:
     runs-on: self-hosted # Use Windows runner
@@ -34,6 +38,13 @@ jobs:
   docker-build-and-push:
     needs: build-and-test
     runs-on: self-hosted
+    # Set appropriate permissions for ghcr.io
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -44,45 +55,35 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry (Windows)
-        shell: pwsh
-        run: |
-          echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u 'TechXplorerFR' --password-stdin
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Multi-Arch Docker Image
-        shell: pwsh
-        run: |
-          docker buildx create --use
-          # Fix: Using proper PowerShell line continuation with backticks and correct Dockerfile path
-          docker buildx build --platform linux/amd64,linux/arm64 `
-            -t ghcr.io/techxplorerfr/test-actions/myapp:latest `
-            -f ./Dockerfile . --push
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
 
-      - name: Make Docker Image Public
-        shell: pwsh
-        run: |
-          $headers = @{
-            "Authorization" = "Bearer ${{ secrets.GHCR_PAT }}"
-            "Accept" = "application/vnd.github.v3+json"
-          }
-          $body = '{"visibility":"public"}'
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-          try {
-              # Correct URL format with URL-encoded package name (test-actions%2Fmyapp)
-              $response = Invoke-RestMethod -Uri "https://api.github.com/orgs/techxplorerfr/packages/container/test-actions%2Fmyapp" -Method PATCH -Headers $headers -Body $body -ContentType "application/json" -ErrorAction Stop
-              Write-Host "✅ Docker image successfully made public"
-          } catch {
-              Write-Host "❌ Failed to make Docker image public"
-              Write-Host "Error details: $_"
-              Write-Host "Response content: $($_.ErrorDetails.Message)"
-              
-              # Try alternative format if the first attempt fails
-              try {
-                  Write-Host "Trying alternative package path format..."
-                  $response = Invoke-RestMethod -Uri "https://api.github.com/user/packages/container/test-actions%2Fmyapp" -Method PATCH -Headers $headers -Body $body -ContentType "application/json" -ErrorAction Stop
-                  Write-Host "✅ Docker image successfully made public with alternative path"
-              } catch {
-                  Write-Host "❌ All attempts failed. Error details: $_"
-                  exit 1
-              }
-          }
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
+          subject-digest: ${{ steps.build-and-push.outputs.digest }}
+          push-to-registry: true
