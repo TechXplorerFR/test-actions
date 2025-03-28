@@ -67,11 +67,13 @@ jobs:
           }
           $body = '{"visibility":"public"}'
 
-          Invoke-RestMethod -Uri "https://api.github.com/user/packages/container/test-actions%2Fmyapp" -Method Patch -Headers $headers -Body $body -ContentType "application/json"
-
-          if ($LASTEXITCODE -ne 0) {
-              Write-Host "❌ Failed to make Docker image public"
-              exit 1
-          } else {
+          try {
+              # Use the organization endpoint format instead of user endpoint
+              $response = Invoke-RestMethod -Uri "https://api.github.com/orgs/techxplorerfr/packages/container/myapp" -Method PATCH -Headers $headers -Body $body -ContentType "application/json" -ErrorAction Stop
               Write-Host "✅ Docker image successfully made public"
+          } catch {
+              Write-Host "❌ Failed to make Docker image public"
+              Write-Host "Error details: $_"
+              Write-Host "Response content: $($_.ErrorDetails.Message)"
+              exit 1
           }
