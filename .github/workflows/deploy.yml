@@ -115,7 +115,7 @@ jobs:
         shell: pwsh
         run: |
           $imageName = "${{ env.REGISTRY }}/${{ github.repository }}"
-          $imageName = $imageName.ToLowerCase()
+          $imageName = $imageName.ToLower()
           echo "IMAGE_NAME=$imageName" >> $env:GITHUB_OUTPUT
           
           $digest = "${{ steps.build-and-push.outputs.digest }}"
