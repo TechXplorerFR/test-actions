@@ -89,28 +89,64 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           provenance: true
           sbom: true
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},name-canonical=true
       
-      # Debug step to check the build-and-push outputs
+      # Enhanced debug step to check the build-and-push outputs
       - name: Check outputs
         shell: pwsh
         run: |
           Write-Host "Available outputs from build-and-push:"
           Write-Host "Digest: ${{ steps.build-and-push.outputs.digest }}"
           Write-Host "Metadata: ${{ steps.build-and-push.outputs.metadata }}"
-          Write-Host "ImageID: ${{ steps.build-and-push.outputs.ImageID }}"
+          Write-Host "ImageID: ${{ steps.build-and-push.outputs.imageID }}"
+          Write-Host "All outputs: ${{ toJSON(steps.build-and-push.outputs) }}"
+          
+          # Create a file with the digest for debugging
+          if ("${{ steps.build-and-push.outputs.digest }}" -ne "") {
+            "${{ steps.build-and-push.outputs.digest }}" | Out-File -FilePath digest.txt
+            Get-Content digest.txt
+          } else {
+            Write-Host "No digest output found"
+          }
+      
+      # Store image details for later use
+      - name: Store image details
+        id: image-details
+        shell: pwsh
+        run: |
+          $imageName = "${{ env.REGISTRY }}/${{ github.repository }}"
+          $imageName = $imageName.ToLowerCase()
+          echo "IMAGE_NAME=$imageName" >> $env:GITHUB_OUTPUT
+          
+          $digest = "${{ steps.build-and-push.outputs.digest }}"
+          if ($digest -ne "") {
+            echo "IMAGE_DIGEST=$digest" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "Attempting to get digest from Docker"
+            # Attempt to get digest from docker directly
+            $latestTag = "$imageName`:latest"
+            docker pull $latestTag
+            $digest = (docker inspect $latestTag --format='{{index .RepoDigests 0}}' | Out-String).Trim() -replace "^.*@", ""
+            if ($digest -ne "") {
+              echo "IMAGE_DIGEST=$digest" >> $env:GITHUB_OUTPUT
+              Write-Host "Retrieved digest: $digest"
+            } else {
+              Write-Host "Failed to get digest from Docker"
+            }
+          }
       
       # Only run attestation if digest is available
       - name: Generate artifact attestation
-        if: ${{ steps.build-and-push.outputs.digest != '' }}
+        if: ${{ steps.image-details.outputs.IMAGE_DIGEST != '' }}
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
-          subject-digest: ${{ steps.build-and-push.outputs.digest }}
+          subject-name: ${{ steps.image-details.outputs.IMAGE_NAME }}
+          subject-digest: ${{ steps.image-details.outputs.IMAGE_DIGEST }}
           push-to-registry: true
       
       # Alternative attestation if the standard one fails
       - name: Alternative attestation approach
-        if: ${{ steps.build-and-push.outputs.digest == '' }}
+        if: ${{ steps.image-details.outputs.IMAGE_DIGEST == '' }}
         shell: pwsh
         run: |
           Write-Host "Standard attestation skipped due to missing digest value."
