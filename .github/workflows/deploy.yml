@@ -106,42 +106,24 @@ jobs:
         id: image-details
         shell: pwsh
         run: |
-          # Format image name correctly
           $imageName = "${{ env.REGISTRY }}/${{ github.repository }}".ToLower()
-          echo "IMAGE_NAME=$imageName" >> $env:GITHUB_OUTPUT
+          echo "IMAGE_NAME=$imageName" >> $env:GITHUB_ENV
           Write-Host "Image Name: $imageName"
-          
-          # Try to get digest from build output first
+    
           $digest = "${{ steps.build-and-push.outputs.digest }}"
-          
-          if ($digest) {
-            Write-Host "Found digest from build output: $digest"
-            echo "IMAGE_DIGEST=$digest" >> $env:GITHUB_OUTPUT
-          } else {
-            Write-Host "No digest in build output, attempting to get from Docker"
-            # Get latest image
-            $latestTag = "$imageName`:latest"
-            docker pull $latestTag
-            
-            # Get full repo digest (includes repo name and digest)
-            $repoDigest = $(docker inspect $latestTag --format='{{index .RepoDigests 0}}')
-            Write-Host "Full repo digest: $repoDigest"
-            
-            if ($repoDigest) {
-              # Extract just the sha256 part
-              $digest = ($repoDigest -split '@')[1]
-              if ($digest) {
-                Write-Host "Extracted digest: $digest"
-                echo "IMAGE_DIGEST=$digest" >> $env:GITHUB_OUTPUT
-              } else {
-                Write-Host "Failed to extract digest from repo digest: $repoDigest"
-                echo "IMAGE_DIGEST=" >> $env:GITHUB_OUTPUT
-              }
+          if ($digest -eq "") {
+            Write-Host "No digest in build output, attempting to retrieve from registry..."
+            $digest = $(docker inspect --format='{{index .RepoDigests 0}}' "$imageName:latest" | Out-String).Trim()
+            if ($digest -match "@sha256:") {
+              $digest = $digest -split '@'[1]
             } else {
-              Write-Host "No repo digest found for image"
-              echo "IMAGE_DIGEST=" >> $env:GITHUB_OUTPUT
+              Write-Host "::error::Failed to retrieve image digest"
+              exit 1
             }
           }
+          Write-Host "Extracted Digest: $digest"
+          echo "IMAGE_DIGEST=$digest" >> $env:GITHUB_ENV
+    
       
       # Explicit validation step before attestation
       - name: Validate image details
@@ -163,13 +145,14 @@ jobs:
           }
       
       # Only run attestation if digest is available and valid
-      - name: Generate artifact attestation
-        if: ${{ steps.image-details.outputs.IMAGE_DIGEST != '' }}
+      - name: Generate Artifact Attestation
+        if: steps.image-details.outputs.IMAGE_DIGEST != ''
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ${{ steps.image-details.outputs.IMAGE_NAME }}
-          subject-digest: ${{ steps.image-details.outputs.IMAGE_DIGEST }}
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: sha256:${{ steps.image-details.outputs.IMAGE_DIGEST }}
           push-to-registry: true
+    
       
       # Final confirmation message
       - name: Deployment status
@@ -184,3 +167,4 @@ jobs:
           } else {
             Write-Host "⚠️ Container published to $imageName but no digest was found"
             Write-Host "⚠️ Attestation was not generated for this container"
+          }
