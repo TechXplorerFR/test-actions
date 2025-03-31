@@ -100,42 +100,69 @@ jobs:
           Write-Host "Metadata: ${{ steps.build-and-push.outputs.metadata }}"
           Write-Host "ImageID: ${{ steps.build-and-push.outputs.imageID }}"
           Write-Host "All outputs: ${{ toJSON(steps.build-and-push.outputs) }}"
-          
-          # Create a file with the digest for debugging
-          if ("${{ steps.build-and-push.outputs.digest }}" -ne "") {
-            "${{ steps.build-and-push.outputs.digest }}" | Out-File -FilePath digest.txt
-            Get-Content digest.txt
-          } else {
-            Write-Host "No digest output found"
-          }
       
-      # Store image details for later use
+      # Improved image details extraction
       - name: Store image details
         id: image-details
         shell: pwsh
         run: |
-          $imageName = "${{ env.REGISTRY }}/${{ github.repository }}"
-          $imageName = $imageName.ToLower()
+          # Format image name correctly
+          $imageName = "${{ env.REGISTRY }}/${{ github.repository }}".ToLower()
           echo "IMAGE_NAME=$imageName" >> $env:GITHUB_OUTPUT
+          Write-Host "Image Name: $imageName"
           
+          # Try to get digest from build output first
           $digest = "${{ steps.build-and-push.outputs.digest }}"
-          if ($digest -ne "") {
+          
+          if ($digest) {
+            Write-Host "Found digest from build output: $digest"
             echo "IMAGE_DIGEST=$digest" >> $env:GITHUB_OUTPUT
           } else {
-            Write-Host "Attempting to get digest from Docker"
-            # Attempt to get digest from docker directly
+            Write-Host "No digest in build output, attempting to get from Docker"
+            # Get latest image
             $latestTag = "$imageName`:latest"
             docker pull $latestTag
-            $digest = (docker inspect $latestTag --format='{{index .RepoDigests 0}}' | Out-String).Trim() -replace "^.*@", ""
-            if ($digest -ne "") {
-              echo "IMAGE_DIGEST=$digest" >> $env:GITHUB_OUTPUT
-              Write-Host "Retrieved digest: $digest"
+            
+            # Get full repo digest (includes repo name and digest)
+            $repoDigest = $(docker inspect $latestTag --format='{{index .RepoDigests 0}}')
+            Write-Host "Full repo digest: $repoDigest"
+            
+            if ($repoDigest) {
+              # Extract just the sha256 part
+              $digest = ($repoDigest -split '@')[1]
+              if ($digest) {
+                Write-Host "Extracted digest: $digest"
+                echo "IMAGE_DIGEST=$digest" >> $env:GITHUB_OUTPUT
+              } else {
+                Write-Host "Failed to extract digest from repo digest: $repoDigest"
+                echo "IMAGE_DIGEST=" >> $env:GITHUB_OUTPUT
+              }
             } else {
-              Write-Host "Failed to get digest from Docker"
+              Write-Host "No repo digest found for image"
+              echo "IMAGE_DIGEST=" >> $env:GITHUB_OUTPUT
             }
           }
       
-      # Only run attestation if digest is available
+      # Explicit validation step before attestation
+      - name: Validate image details
+        shell: pwsh
+        run: |
+          $imageName = "${{ steps.image-details.outputs.IMAGE_NAME }}"
+          $digest = "${{ steps.image-details.outputs.IMAGE_DIGEST }}"
+          
+          Write-Host "Validation - Image Name: $imageName"
+          Write-Host "Validation - Image Digest: $digest"
+          
+          if (-not $imageName) {
+            Write-Host "::error::Image name is empty or undefined"
+            exit 1
+          }
+          
+          if (-not $digest) {
+            Write-Host "::warning::Image digest is empty or undefined - attestation will be skipped"
+          }
+      
+      # Only run attestation if digest is available and valid
       - name: Generate artifact attestation
         if: ${{ steps.image-details.outputs.IMAGE_DIGEST != '' }}
         uses: actions/attest-build-provenance@v2
@@ -144,10 +171,16 @@ jobs:
           subject-digest: ${{ steps.image-details.outputs.IMAGE_DIGEST }}
           push-to-registry: true
       
-      # Alternative attestation if the standard one fails
-      - name: Alternative attestation approach
-        if: ${{ steps.image-details.outputs.IMAGE_DIGEST == '' }}
+      # Final confirmation message
+      - name: Deployment status
         shell: pwsh
         run: |
-          Write-Host "Standard attestation skipped due to missing digest value."
-          Write-Host "Your container has been published to ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}"
+          $imageName = "${{ steps.image-details.outputs.IMAGE_NAME }}"
+          $digest = "${{ steps.image-details.outputs.IMAGE_DIGEST }}"
+          
+          if ($digest) {
+            Write-Host "✅ Container successfully published to $imageName with digest $digest"
+            Write-Host "✅ Attestation was generated for this container"
+          } else {
+            Write-Host "⚠️ Container published to $imageName but no digest was found"
+            Write-Host "⚠️ Attestation was not generated for this container"
